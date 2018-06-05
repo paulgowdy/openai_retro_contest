@@ -6,6 +6,51 @@ import gym_remote.client as grc
 
 from retro_contest.local import make
 
+import numpy as np
+from collections import deque
+import gym
+from gym import spaces
+import cv2
+
+class myWarpFrame(gym.ObservationWrapper):
+    def __init__(self, env):
+        """Warp frames to 84x84 as done in the Nature paper and later work."""
+        gym.ObservationWrapper.__init__(self, env)
+        dim = 64
+        self.width = dim
+        self.height = dim
+        self.observation_space = spaces.Box(low=0, high=255,
+            shape=(self.height, self.width, 3), dtype=np.uint8)
+
+    def observation(self, frame):
+        #frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
+        frame = frame[65:130,40:280,:]
+
+        frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
+
+        return frame[:, :]
+
+def make_env_multi(game_name, stage, stack=True, scale_rew=True):
+    """
+    Create an environment with some standard wrappers.
+    """
+    #env = grc.RemoteEnv('tmp/sock')
+    #env = make(game='SonicTheHedgehog-Genesis', state='LabyrinthZone.Act1')
+    env = make(game=game_name, state=stage)
+
+    env = SonicDiscretizer(env)
+
+    if scale_rew:
+        env = RewardScaler(env)
+
+    #env = WarpFrame(env)
+    env = myWarpFrame(env)
+
+    if stack:
+        env = FrameStack(env, 4)
+    return env
+
 def make_env(stack=True, scale_rew=True):
     """
     Create an environment with some standard wrappers.
@@ -17,7 +62,7 @@ def make_env(stack=True, scale_rew=True):
 
     if scale_rew:
         env = RewardScaler(env)
-    env = WarpFrame(env)
+    env = myWarpFrame(env)
     if stack:
         env = FrameStack(env, 4)
     return env
